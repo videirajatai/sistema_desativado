@@ -193,6 +193,49 @@
         .btn-youtube { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background-color: #FF0000; color: white; font-weight: bold; text-decoration: none; border-radius: 8px; margin-bottom: 15px; transition: background 0.2s; box-sizing: border-box; }
         .btn-youtube:hover { background-color: #cc0000; }
 
+        /* Estilos específicos para o modal da palavra (tela cheia) */
+                #modalPalavra.modal-overlay {
+                    background: rgba(0,0,0,0.6);        /* fundo escuro, sem blur */
+                    align-items: stretch;                /* ocupa toda altura */
+                    backdrop-filter: none;               /* remove qualquer desfoque */
+                }
+                
+                #modalPalavra .modal-content {
+                    width: 100%;
+                    max-width: 100%;                     /* remove limite de largura */
+                    height: 100vh;                      /* altura total da viewport */
+                    max-height: 100vh;                  /* garante que não ultrapasse */
+                    border-radius: 0;                   /* sem bordas arredondadas */
+                    padding: 20px;
+                    animation: none;                    /* remove animação de slide */
+                    box-shadow: none;                   /* remove sombra */
+                    display: flex;
+                    flex-direction: column;
+                    overflow-y: auto;
+                }
+                
+                /* Ajuste para o botão de fechar dentro do modal da palavra */
+                #modalPalavra .btn-close-modal {
+                    position: static;                   /* reposiciona no fluxo normal */
+                    margin-left: auto;
+                    background: #f1f5f9;
+                }
+                
+                /* Área de ações (botões de download e fechar) */
+                #modalPalavra .modal-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                }
+                
+                /* Estilo do texto no modal da palavra */
+                #modalPalavra .word-text {
+                    font-size: 1.1rem;
+                    line-height: 1.7;
+                    text-align: justify;
+                }
+
         /* FORMS */
         .form-box { background: white; padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); }
         label { display: block; margin-bottom: 5px; color: var(--text-light); font-weight: 600; font-size: 0.85rem; }
@@ -479,7 +522,7 @@
 </div>
 
 <!-- MODAL PALAVRA -->
-<div id="modalPalavra" class="modal-overlay hidden" onclick="fecharModal(event)">
+<!--<div id="modalPalavra" class="modal-overlay hidden" onclick="fecharModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <div class="modal-actions">
             <button class="modal-download" onclick="baixarPalavraTXT()" title="Baixar TXT"><i class="fas fa-download"></i></button>
@@ -490,7 +533,25 @@
         <a id="btnLinkYoutube" href="#" target="_blank" class="btn-youtube hidden"><i class="fab fa-youtube"></i> Assistir no YouTube</a>
         <div id="modalTexto" class="word-text"></div>
     </div>
-</div>
+</div>-->
+
+    <!-- MODAL PALAVRA (com mesmo ID e classes) -->
+        <div id="modalPalavra" class="modal-overlay hidden" onclick="fecharModal(event)">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-actions">
+                    <button class="modal-download" onclick="baixarPalavraTXT()" title="Baixar TXT">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn-close-modal" onclick="fecharModal(null)">&times;</button>
+                </div>
+                <h3 id="modalTitulo" style="color:var(--primary); margin-top:10px;"></h3>
+                <small id="modalData" style="color:#777; display:block; margin-bottom:15px;"></small>
+                <a id="btnLinkYoutube" href="#" target="_blank" class="btn-youtube hidden">
+                    <i class="fab fa-youtube"></i> Assistir no YouTube
+                </a>
+                <div id="modalTexto" class="word-text"></div>
+            </div>
+        </div>
 
 <!-- OFF CANVAS DA BÍBLIA -->
 <div id="biblia-overlay" onclick="fecharBiblia()"></div>
