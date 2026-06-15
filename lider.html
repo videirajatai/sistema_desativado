@@ -236,6 +236,16 @@
                     text-align: justify;
                 }
 
+        /* Bloqueia rolagem do body quando um modal está aberto */
+        body.modal-palavra-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
         /* FORMS */
         .form-box { background: white; padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); }
         label { display: block; margin-bottom: 5px; color: var(--text-light); font-weight: 600; font-size: 0.85rem; }
@@ -1347,33 +1357,40 @@
     }
 
        function abrirPalavra(index) {
-        const p = listaPalavras[index];
-        palavraAtual = p;
-        document.getElementById('modalTitulo').innerText = p.tema || '';
-        let dataF = p.data || '';
-        try { if(dataF.includes('-')) { const dp = dataF.split('-'); dataF = `${dp[2]}/${dp[1]}/${dp[0]}`; } } catch(e){}
-        document.getElementById('modalData').innerText = dataF;
-        document.getElementById('modalTexto').innerText = p.texto || '';
-        const btn = document.getElementById('btnLinkYoutube');
-        if (p.link_youtube && p.link_youtube.trim() !== "") {
-            btn.href = p.link_youtube;
-            btn.classList.remove('hidden');
-        } else {
-            btn.classList.add('hidden');
-        }
-        document.getElementById('modalPalavra').classList.remove('hidden');
+            const p = listaPalavras[index];
+            palavraAtual = p;
+            document.getElementById('modalTitulo').innerText = p.tema || '';
+            let dataF = p.data || '';
+            try { if(dataF.includes('-')) { const dp = dataF.split('-'); dataF = `${dp[2]}/${dp[1]}/${dp[0]}`; } } catch(e){}
+            document.getElementById('modalData').innerText = dataF;
+            document.getElementById('modalTexto').innerText = p.texto || '';
+            const btn = document.getElementById('btnLinkYoutube');
+            if (p.link_youtube && p.link_youtube.trim() !== "") {
+                btn.href = p.link_youtube;
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+            document.getElementById('modalPalavra').classList.remove('hidden');
+            
+            // 🔒 Ativa wake lock
+            requestWakeLock();
         
-        // 🔒 Ativa wake lock para impedir tela desligar
-        requestWakeLock();
-    }
+            // 🔒 Trava o scroll do fundo
+            document.body.classList.add('modal-palavra-open');
+        }
 
     function fecharModal(e) {
-    if(e === null || e.target === document.getElementById('modalPalavra')) {
-        document.getElementById('modalPalavra').classList.add('hidden');
-        // 🔓 Libera wake lock para permitir que a tela desligue normalmente
-        releaseWakeLock();
-    }
-}
+            if(e === null || e.target === document.getElementById('modalPalavra')) {
+                document.getElementById('modalPalavra').classList.add('hidden');
+                
+                // 🔓 Libera wake lock
+                releaseWakeLock();
+        
+                // 🔓 Libera o scroll do fundo
+                document.body.classList.remove('modal-palavra-open');
+            }
+        }
 
     function baixarPalavraTXT() {
         if (!palavraAtual) return;
