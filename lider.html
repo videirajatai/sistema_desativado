@@ -782,6 +782,40 @@
         if (icon) icon.classList.remove('fa-spin');
     }
 
+
+    // ========== WAKE LOCK (impede tela desligar) ==========
+        let wakeLock = null;
+        
+        async function requestWakeLock() {
+            // Verifica se a API Wake Lock é suportada
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock ativado - tela não desligará');
+                    
+                    // Reconecta automaticamente se a tela for desligada por outros motivos
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock foi liberado');
+                    });
+                } catch (err) {
+                    console.error('Falha ao ativar Wake Lock:', err);
+                }
+            } else {
+                console.warn('Wake Lock API não suportada neste navegador');
+            }
+        }
+        
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release()
+                    .then(() => {
+                        wakeLock = null;
+                        console.log('Wake Lock liberado - tela pode desligar');
+                    })
+                    .catch(err => console.error('Erro ao liberar Wake Lock:', err));
+            }
+        }
+
     function renderizarSelectorCelulas(celulas) {
         const container = document.getElementById('listaCelulasLider');
         container.innerHTML = '';
@@ -1312,21 +1346,34 @@
         }).catch(err => alert("Erro ao copiar. Copie manualmente!"));
     }
 
-    function abrirPalavra(index) {
-        const p = listaPalavras[index]; palavraAtual = p;
+       function abrirPalavra(index) {
+        const p = listaPalavras[index];
+        palavraAtual = p;
         document.getElementById('modalTitulo').innerText = p.tema || '';
-        let dataF = p.data || ''; 
-        try { if(dataF.includes('-')) { const dp = dataF.split('-'); dataF = `${dp[2]}/${dp[1]}/${dp[0]}`; } } catch(e) {}
+        let dataF = p.data || '';
+        try { if(dataF.includes('-')) { const dp = dataF.split('-'); dataF = `${dp[2]}/${dp[1]}/${dp[0]}`; } } catch(e){}
         document.getElementById('modalData').innerText = dataF;
         document.getElementById('modalTexto').innerText = p.texto || '';
         const btn = document.getElementById('btnLinkYoutube');
-        if (p.link_youtube?.trim()) { btn.href = p.link_youtube; btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
+        if (p.link_youtube && p.link_youtube.trim() !== "") {
+            btn.href = p.link_youtube;
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
         document.getElementById('modalPalavra').classList.remove('hidden');
+        
+        // 🔒 Ativa wake lock para impedir tela desligar
+        requestWakeLock();
     }
 
-    function fecharModal(e) { 
-        if(e === null || e.target.id === 'modalPalavra') document.getElementById('modalPalavra').classList.add('hidden');
+    function fecharModal(e) {
+    if(e === null || e.target === document.getElementById('modalPalavra')) {
+        document.getElementById('modalPalavra').classList.add('hidden');
+        // 🔓 Libera wake lock para permitir que a tela desligue normalmente
+        releaseWakeLock();
     }
+}
 
     function baixarPalavraTXT() {
         if (!palavraAtual) return;
