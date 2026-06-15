@@ -745,25 +745,25 @@
     }
 
     async function abrirModalCelula(cel) {
-        celulaAtiva = cel;
-        document.getElementById('modalCelulaTitulo').innerText = cel.nome;
-        document.getElementById('modalCelula').classList.remove('hidden');
-        document.getElementById('cadastroModalCelulaHidden').value = cel.nome;
-        
-        await carregarMembrosDaCelula(cel.nome);
-        renderizarMembrosCelulaModal(membrosDaCelulaAtiva);
-    }
+    celulaAtiva = cel;   // cel contém { id, nome, ... }
+    document.getElementById('modalCelulaTitulo').innerText = cel.nome;
+    document.getElementById('modalCelula').classList.remove('hidden');
+    // Guarda o ID da célula para uso nos formulários
+    document.getElementById('cadastroModalCelulaHidden').value = cel.id;
+    await carregarMembrosDaCelula(cel.id);   // ← passa o ID
+    renderizarMembrosCelulaModal(membrosDaCelulaAtiva);
+}
 
     function fecharModalCelula() {
         document.getElementById('modalCelula').classList.add('hidden');
     }
 
-    async function carregarMembrosDaCelula(nomeCelula) {
+    async function carregarMembrosDaCelula(celulaId) {
         try {
             const { data, error } = await supabaseClient
                 .from('membros')
                 .select('*')
-                .eq('celula', nomeCelula)
+                .eq('celula_id', celulaId)   // ← alterado de 'celula' para 'celula_id'
                 .eq('arquivado', 'Não');
             if (error) throw error;
             membrosDaCelulaAtiva = data || [];
@@ -832,40 +832,67 @@
     }
 
     document.getElementById('formMembroModal').onsubmit = async function(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnSalvarModal');
-        btn.disabled = true;
-        
-        const d = {
-            nome: this.nome.value,
-            nascimento: this.nascimento.value || null,
-            tipo: this.categoria.value,
-            celula: this.celula.value,
-            telefone: this.telefone.value,
-            batizado: this.batizado.checked ? "Sim" : "Não",
-            cursao: this.cursao.checked ? "Sim" : "Não",
-            ctl: this.ctl.checked ? "Sim" : "Não",
-            encontro: this.encontro.checked ? "Sim" : "Não",
-            seminario: this.seminario.checked ? "Sim" : "Não",
-            dizimista: this.dizimista.checked ? "Sim" : "Não",
-            arquivado: "Não"
-        };
-        
-        try {
-            await salvarSupabase('membros', d);
-            alert("Membro cadastrado com sucesso!");
-            this.reset();
-            fecharModalCadastro();
-            if (celulaAtiva) {
-                await carregarMembrosDaCelula(celulaAtiva.nome);
-                renderizarMembrosCelulaModal(membrosDaCelulaAtiva);
-            }
-        } catch (err) {
-            alert("Erro ao salvar: " + err.message);
-        } finally {
-            btn.disabled = false;
-        }
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarModal');
+    btn.disabled = true;
+    btn.innerText = "Salvando...";
+
+    const idEdicao = document.getElementById('editMembroIdHidden').value;
+    const celulaId = document.getElementById('cadastroModalCelulaHidden').value;
+    
+    // Busca o nome da célula para manter compatibilidade com o campo 'celula' (texto)
+    let celulaNome = '';
+    if (celulaId) {
+        const celEncontrada = dadosCelulas.find(c => c.id == celulaId);
+        if (celEncontrada) celulaNome = celEncontrada.nome;
+    }
+
+    const d = {
+        nome: this.nome.value,
+        nascimento: this.nascimento.value || null,
+        tipo: this.categoria.value,
+        celula_id: celulaId || null,          // ← chave estrangeira
+        celula: celulaNome,                   // ← compatibilidade (pode ser removido depois)
+        telefone: this.telefone.value,
+        batizado: this.batizado.checked ? "Sim" : "Não",
+        cursao: this.cursao.checked ? "Sim" : "Não",
+        ctl: this.ctl.checked ? "Sim" : "Não",
+        encontro: this.encontro.checked ? "Sim" : "Não",
+        seminario: this.seminario.checked ? "Sim" : "Não",
+        dizimista: this.dizimista.checked ? "Sim" : "Não",
+        arquivado: "Não"
     };
+
+    try {
+        if (idEdicao) {
+            const { error } = await supabaseClient
+                .from('membros')
+                .update(d)
+                .eq('id', idEdicao);
+            if (error) throw error;
+            alert("Membro atualizado com sucesso!");
+        } else {
+            const { error } = await supabaseClient.from('membros').insert([d]);
+            if (error) throw error;
+            alert("Membro cadastrado com sucesso!");
+        }
+
+        this.reset();
+        document.getElementById('modalCadastroMembro').classList.add('hidden');
+        document.getElementById('modalCadastroMembro').querySelector('h3').innerText = 'Cadastrar Novo Membro';
+        document.getElementById('editMembroIdHidden').value = '';
+
+        if (celulaAtiva) {
+            await carregarMembrosDaCelula(celulaAtiva.id);
+            renderizarMembrosCelulaModal(membrosDaCelulaAtiva);
+        }
+    } catch (err) {
+        alert("Erro ao salvar: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Salvar";
+    }
+};
 
     async function abrirApascentar() {
         if (!celulaAtiva) return;
@@ -1276,7 +1303,6 @@
  */
 async function abrirEditarMembro(id) {
     try {
-        // Buscar o membro na tabela 'membros' (nome da tabela antiga)
         const { data: membro, error } = await supabaseClient
             .from('membros')
             .select('*')
@@ -1288,16 +1314,13 @@ async function abrirEditarMembro(id) {
             return;
         }
 
-        // Preencher os campos do formulário (usando os mesmos IDs do modal de cadastro)
-        document.getElementById('editMembroIdHidden').value = membro.id;  // campo oculto com o ID
+        document.getElementById('editMembroIdHidden').value = membro.id;
         document.getElementById('formMembroModal').querySelector('input[name="nome"]').value = membro.nome || '';
         document.getElementById('formMembroModal').querySelector('input[name="nascimento"]').value = membro.nascimento || '';
         document.getElementById('formMembroModal').querySelector('input[name="telefone"]').value = membro.telefone || '';
         document.getElementById('formMembroModal').querySelector('select[name="categoria"]').value = membro.tipo || 'Membro';
-
-        // O campo celula no formulário é um hidden? Ou um select? No código enviado, o campo celula está como hidden: <input type="hidden" name="celula" id="cadastroModalCelulaHidden">
-        // Vamos atualizar esse hidden com o nome da célula do membro (ou o ID, mas a lógica antiga usa nome)
-        document.getElementById('cadastroModalCelulaHidden').value = membro.celula || '';
+        // Preenche o hidden com o celula_id
+        document.getElementById('cadastroModalCelulaHidden').value = membro.celula_id || '';
 
         // Checkboxes
         document.getElementById('formMembroModal').querySelector('input[name="batizado"]').checked = (membro.batizado === 'Sim' || membro.batizado === true);
@@ -1307,17 +1330,14 @@ async function abrirEditarMembro(id) {
         document.getElementById('formMembroModal').querySelector('input[name="seminario"]').checked = (membro.seminario === 'Sim' || membro.seminario === true);
         document.getElementById('formMembroModal').querySelector('input[name="dizimista"]').checked = (membro.dizimista === 'Sim' || membro.dizimista === true);
 
-        // Mudar o título do modal (opcional)
         document.getElementById('modalCadastroMembro').querySelector('h3').innerText = 'Editar Membro';
-
-        // Exibir o modal
         document.getElementById('modalCadastroMembro').classList.remove('hidden');
     } catch (err) {
         console.error(err);
         alert("Erro ao carregar dados do membro.");
     }
 }
-
+    
 // Modificar o evento de submit do formMembroModal para suportar edição
 document.getElementById('formMembroModal').onsubmit = async function(e) {
     e.preventDefault();
