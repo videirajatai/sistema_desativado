@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redefinir Senha - Videira</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f7f6; font-family: sans-serif; }
+        .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;}
+        button { width: 100%; padding: 12px; background: #600018; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .erro { color: red; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Criar Nova Senha</h2>
+        <p>Digite sua nova senha de 4 números abaixo.</p>
+        
+        <input type="password" id="nova-senha" placeholder="Nova Senha (ex: 1234)" inputmode="numeric">
+        <input type="password" id="confirma-senha" placeholder="Repita a Nova Senha" inputmode="numeric">
+        
+        <button id="btn-salvar" onclick="salvarNovaSenha()">Salvar Nova Senha</button>
+        <p id="msg-erro" class="erro"></p>
+    </div>
+
+    <script>
+        // MESMOS DADOS DO SEU INDEX
+           const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+        // O Supabase já reconhece automaticamente o token que veio no link do e-mail!
+
+        async function salvarNovaSenha() {
+            const senha1 = document.getElementById('nova-senha').value.trim();
+            const senha2 = document.getElementById('confirma-senha').value.trim();
+            const erro = document.getElementById('msg-erro');
+            const btn = document.getElementById('btn-salvar');
+
+            if (!senha1 || !senha2) {
+                erro.innerText = "Preencha os dois campos!";
+                erro.style.display = 'block'; return;
+            }
+            if (senha1 !== senha2) {
+                erro.innerText = "As senhas não são iguais!";
+                erro.style.display = 'block'; return;
+            }
+
+            btn.innerText = "Salvando..."; btn.disabled = true; erro.style.display = 'none';
+
+            // O NOSSO TRUQUE MÁGICO DE VOLTA AQUI!
+            // Completa os 4 números com a palavra secreta antes de mandar pro banco
+            const senhaOficial = senha1 + "-videira";
+
+            // Atualiza a senha no cofre do Supabase
+            const { data, error } = await supabaseClient.auth.updateUser({
+                password: senhaOficial
+            });
+
+            if (error) {
+                erro.innerText = "Erro ao redefinir: " + error.message;
+                erro.style.display = 'block';
+                btn.innerText = "Salvar Nova Senha"; btn.disabled = false;
+            } else {
+                alert("Senha redefinida com sucesso! Você já pode fazer login.");
+                // Redireciona de volta para o login
+                window.location.href = "index.html"; 
+            }
+        }
+    </script>
+</body>
+</html>

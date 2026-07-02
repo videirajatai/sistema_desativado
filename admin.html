@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Painel Administrador - Videira Jataí</title>
+    
+    <!-- CONFIGURAÇÃO CENTRALIZADA -->
+    <script src="config.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase (biblioteca) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="shortcut icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Sistema Videira">
+    <meta name="apple-mobile-web-app-title" content="Sistema Videira">
+    <meta name="theme-color" content="#0f172a"> 
+    <link rel="manifest" href="manifest.json">
+  
+    <style>
+      /* ESTILOS MANTIDOS EXATAMENTE COMO ANTES */
+      .container { max-width: 800px; margin: 0 auto; padding: 15px; }
+      .header { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 15px 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border-left: 5px solid #000; }
+      .header h3 { margin: 0; color: #000; font-weight: 800; text-transform: uppercase; font-size: 1.1rem; }
+      .btn-refresh { background: none; border: none; font-size: 1.2rem; color: var(--text-light); cursor: pointer; transition: 0.3s; }
+      .nav-menu { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+      .nav-btn { flex: 1 1 45%; min-width: 100px; padding: 12px; border: none; border-radius: 10px; background: white; color: var(--text-light); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); font-size: 0.85rem; }
+      .nav-btn i { font-size: 1.2rem; }
+      .nav-btn.active { background: #000; color: white; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); }
+      .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; }
+      .filter-bar input, .filter-bar select { margin-bottom: 0; padding: 10px; font-size: 0.9rem; border-color: #ddd; }
+      .user-card { background: white; padding: 15px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+      .user-info h4 { margin: 0 0 4px 0; color: var(--text-main); font-size: 1rem; }
+      .user-info p { margin: 0; font-size: 0.8rem; color: #777; }
+      .badge-role { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #eee; color: #555; margin-top: 5px; }
+      .badge-role.Administrador { background: #000; color: #fff; }
+      .badge-role.Pastor { background: rgba(128, 0, 32, 0.1); color: #800020; }
+      .action-btns { display: flex; gap: 8px; }
+      .btn-icon-action { width: 35px; height: 35px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; }
+      .btn-edit { background: #f0f4f8; color: #0056b3; }
+      .btn-del { background: #fdf5f6; color: var(--danger-text); }
+      .btn-key { background: #fef9e7; color: #b8860b; }
+      .log-card { background: white; padding: 12px 15px; border-radius: 8px; border-left: 3px solid #ccc; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+      .log-card.Sucesso { border-left-color: var(--success-text); }
+      .log-date { font-size: 0.75rem; color: #999; margin-bottom: 3px; }
+      .log-text { font-size: 0.85rem; color: #333; margin: 0; line-height: 1.4; }
+      .log-text strong { color: var(--primary); }
+      .form-box { background: white; padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); }
+      label { display: block; margin-bottom: 5px; color: var(--text-light); font-weight: 600; font-size: 0.85rem; }
+      input, select { width: 100%; padding: 12px; background: var(--input-bg); margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 8px; outline: none; box-sizing: border-box; }
+      .btn-save { width: 100%; padding: 14px; background: #000; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+      .btn-add { background: var(--success-text); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <!-- ========================================== -->
+    <!-- VERIFICAÇÃO DE ACESSO (PADRÃO PASTOR)       -->
+    <!-- ========================================== -->
+    <script>
+      (async () => {
+          // Usa as variáveis globais do config.js
+          const supabaseTemp = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+          const { data: { user } } = await supabaseTemp.auth.getUser();
+
+          if (!user) {
+              window.location.href = "index.html";
+              return;
+          }
+
+          const { data: usuario } = await supabaseTemp
+              .from('usuarios')
+              .select('categoria')
+              .eq('email', user.email)
+              .single();
+
+          const cat = (usuario?.categoria || "membro").toLowerCase();
+
+          // Apenas ADMINISTRADOR pode acessar este painel
+          const permitidos = ["administrador"];
+
+          if (!permitidos.includes(cat)) {
+              alert("Acesso restrito. Apenas administradores podem acessar este painel.");
+              // Redireciona de acordo com a categoria real
+              if (cat === "membro") window.location.href = "membro.html";
+              else if (cat === "lider" || cat === "líder") window.location.href = "lider.html";
+              else if (cat === "pastor") window.location.href = "pastor.html";
+              else if (cat === "tesoureiro") window.location.href = "financeiromobile.html";
+              else window.location.href = "index.html";
+              return;
+          }
+
+          // Salva informações no sessionStorage (para uso em logs e outras funções)
+          sessionStorage.setItem('usuarioLogado', user.user_metadata?.nome || user.email);
+          sessionStorage.setItem('loginDigitado', user.email);
+      })();
+    </script>
+
+    <div class="container">
+      
+      <div class="header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <img src="https://img.linkme.bio/img/2021/05/10141826/logo-videira-circulo-1.png" style="width: 110px;">
+          <h3>Painel Admin</h3>
+        </div>
+        <div style="display:flex; align-items:center; gap: 15px;">
+          <button onclick="carregarTudo()" class="btn-refresh" title="Atualizar Dados"><i id="iconRefresh" class="fas fa-sync-alt"></i></button>
+          <button onclick="fazerLogout()" class="btn-refresh" style="color: #991b1b;" title="Sair do Sistema"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+      </div>
+
+      <div class="nav-menu">
+        <button onclick="mudarSecao('usuarios')" class="nav-btn active" id="btn-usuarios"><i class="fas fa-users-cog"></i> Usuários</button>
+        <button onclick="mudarSecao('logs')" class="nav-btn" id="btn-logs"><i class="fas fa-history"></i> Auditoria (Logs)</button>
+      </div>
+
+      <div id="secao-usuarios">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+           <h4 style="margin:0; color: var(--text-light);">Gerenciar Acessos</h4>
+           <button onclick="novoUsuario()" class="btn-add"><i class="fas fa-plus"></i> Novo Cadastro</button>
+        </div>
+
+        <div class="filter-bar">
+            <input type="text" id="filtroNome" placeholder="Buscar por nome ou login..." onkeyup="filtrarUsuarios()" style="flex: 2;">
+            <select id="filtroCategoria" onchange="filtrarUsuarios()" style="flex: 1;">
+                <option value="">Todos</option>
+                <option value="Administrador">Administrador</option>
+                <option value="Pastor">Pastor</option>
+                <option value="Líder">Líder</option>
+                <option value="Discipulador">Discipulador</option>
+                <option value="Tesoureiro">Tesoureiro</option>
+                <option value="membro">Membro</option>
+            </select>
+        </div>
+        <div id="listaUsuarios">
+           <p style="text-align:center; color:#999;">Carregando...</p>
+        </div>
+      </div>
+
+      <div id="secao-form-usuario" class="form-box hidden">
+        <h3 id="tituloFormUsuario" style="color:#000; margin-top:0;">Novo Usuário</h3>
+        <form id="formUsuario">
+          <input type="hidden" name="usuarioOriginal" id="usuarioOriginal">
+          
+          <label>Nome do Responsável</label>
+          <input type="text" name="nome" id="cadNome" required placeholder="Ex: Thiago Silva">
+          
+          <label>Login de Acesso (Usuário)</label>
+          <input type="text" name="usuario" id="cadUsuario" required placeholder="Ex: thiago.lider" style="text-transform: lowercase;">
+          
+          <label>WhatsApp</label>
+          <input type="tel" name="whatsapp" id="cadWhatsapp" placeholder="(64) 99999-9999">
+          
+          <label>Nível de Acesso (Categoria)</label>
+          <select name="categoria" id="cadCategoria" required>
+             <option value="Líder">Líder</option>
+             <option value="Discipulador">Discipulador</option>
+             <option value="Tesoureiro">Tesoureiro</option>
+             <option value="Pastor">Pastor</option>
+             <option value="Administrador">Administrador</option>
+             <option value="membro">Membro</option>
+          </select>
+
+          <div style="display:flex; gap:10px; margin-top: 15px;">
+             <button type="button" onclick="mudarSecao('usuarios')" style="flex:1; background:#eee; color:#555; border:none; border-radius:8px; cursor: pointer;">Cancelar</button>
+             <button type="submit" id="btnSalvarUsuario" class="btn-save" style="flex:2;">Salvar Usuário</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="secao-logs" class="hidden">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+           <h4 style="margin:0; color: var(--text-light);">Últimas Ações</h4>
+           <button onclick="limparLogs()" class="btn-add" style="background:#fdf5f6; color:var(--danger-text); border:1px solid #fecdd3;"><i class="fas fa-trash-alt"></i> Limpar</button>
+        </div>
+        <div id="listaLogs">
+           <p style="text-align:center; color:#999;">Carregando...</p>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      // ==========================================
+      // CONFIGURAÇÃO DO SUPABASE (USA VARIÁVEIS GLOBAIS)
+      // ==========================================
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      
+      let dadosUsuarios = []; 
+      let dadosExibidos = [];
+
+      window.onload = carregarTudo;
+
+      function mudarSecao(s) {
+         ['usuarios','form-usuario','logs'].forEach(id => document.getElementById('secao-'+id).classList.add('hidden'));
+         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+         document.getElementById('secao-'+s).classList.remove('hidden');
+         if(document.getElementById('btn-'+s)) document.getElementById('btn-'+s).classList.add('active');
+      }
+
+      async function carregarTudo() {
+         const icon = document.getElementById('iconRefresh'); if(icon) icon.classList.add('fa-spin');
+         try {
+             const [ { data: users }, { data: logs } ] = await Promise.all([
+                 supabaseClient.from('usuarios').select('*').order('nome', { ascending: true }),
+                 supabaseClient.from('log').select('*').order('id', { ascending: false }).limit(100) 
+             ]);
+
+             dadosUsuarios = users || [];
+             filtrarUsuarios();
+             renderizarLogs(logs || []);
+         } catch(e) {
+             console.error("Erro ao carregar dados:", e);
+             alert("Erro ao carregar dados do servidor. Verifique sua conexão.");
+         } finally {
+             if(icon) icon.classList.remove('fa-spin');
+         }
+      }
+
+      function filtrarUsuarios() {
+          const termoDigitado = document.getElementById('filtroNome').value.toLowerCase();
+          const categoriaSelecionada = document.getElementById('filtroCategoria').value.toLowerCase();
+
+          dadosExibidos = dadosUsuarios.filter(u => {
+              const textoCombina = u.nome.toLowerCase().includes(termoDigitado) || u.usuario.toLowerCase().includes(termoDigitado);
+              const categoriaCombina = (categoriaSelecionada === "") || 
+                                       (u.categoria && u.categoria.toLowerCase() === categoriaSelecionada);
+              return textoCombina && categoriaCombina;
+          });
+
+          renderizarUsuarios(dadosExibidos);
+      }
+
+      function renderizarUsuarios(lista) {
+         const div = document.getElementById('listaUsuarios'); div.innerHTML = '';
+         if(!lista || lista.length === 0) { 
+             div.innerHTML = '<p style="text-align:center; color:#999; padding: 20px;">Nenhum usuário encontrado na pesquisa.</p>'; 
+             return; 
+         }
+         
+         lista.forEach((u) => {
+             const indexOriginal = dadosUsuarios.findIndex(orig => orig.id === u.id);
+             const user = u.usuario; 
+             const nome = u.nome; 
+             const cat = u.categoria;
+             const email = u.email || 'E-mail não cadastrado';
+             const whatsapp = u.whatsapp || 'Sem telefone';
+             
+             div.innerHTML += `
+             <div class="user-card">
+                <div class="user-info">
+                   <h4>${nome}</h4>
+                   <p><i class="fas fa-user-circle"></i> Login: <strong>${user}</strong></p>
+                   <p><i class="fas fa-envelope"></i> ${email}</p>
+                   <p><i class="fab fa-whatsapp"></i> ${whatsapp}</p>
+                   <span class="badge-role ${cat}">${cat}</span>
+                </div>
+                <div class="action-btns">
+                   <button onclick="redefinirSenha('${email}')" class="btn-icon-action btn-key" title="Redefinir Senha"><i class="fas fa-key"></i></button>
+                   <button onclick="editarUsuario(${indexOriginal})" class="btn-icon-action btn-edit" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                   <button onclick="excluirUsuario('${u.id}', '${user}')" class="btn-icon-action btn-del" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                </div>
+             </div>`;
+         });
+      }
+
+      function renderizarLogs(lista) {
+         const div = document.getElementById('listaLogs'); div.innerHTML = '';
+         if(!lista || lista.length === 0) { div.innerHTML = '<p style="text-align:center; color:#999;">Nenhum registro encontrado.</p>'; return; }
+         
+         lista.forEach(l => {
+             let dataF = l.datahora; let login = l.usuario; let nome = l.nomelider; let acao = l.acao || "";
+             let borderClass = acao.includes("Sucesso") ? "Sucesso" : "";
+             div.innerHTML += `
+             <div class="log-card ${borderClass}">
+                <div class="log-date"><i class="far fa-clock"></i> ${dataF}</div>
+                <p class="log-text"><strong>${nome}</strong> (${login})<br>${acao}</p>
+             </div>`;
+         });
+      }
+
+      function novoUsuario() {
+         document.getElementById('formUsuario').reset();
+         document.getElementById('usuarioOriginal').value = "";
+         document.getElementById('tituloFormUsuario').innerText = "Novo Usuário";
+         document.getElementById('cadUsuario').readOnly = false;
+         mudarSecao('form-usuario');
+      }
+
+      function editarUsuario(index) {
+         const u = dadosUsuarios[index];
+         document.getElementById('usuarioOriginal').value = u.id;
+         document.getElementById('cadUsuario').value = u.usuario;
+         document.getElementById('cadNome').value = u.nome;
+         document.getElementById('cadWhatsapp').value = u.whatsapp || '';
+         document.getElementById('cadCategoria').value = u.categoria;
+         
+         document.getElementById('tituloFormUsuario').innerText = "Editar Usuário";
+         mudarSecao('form-usuario');
+      }
+
+      document.getElementById('formUsuario').onsubmit = async function(e) {
+         e.preventDefault();
+         const btn = document.getElementById('btnSalvarUsuario'); 
+         btn.disabled = true; 
+         btn.innerText = "Salvando...";
+         
+         const idUsuario = this.usuarioOriginal.value;
+         const d = {
+            usuario: this.usuario.value.trim().toLowerCase(),
+            nome: this.nome.value,
+            whatsapp: this.whatsapp.value,   // ✅ Corrigido: agora usa whatsapp
+            categoria: this.categoria.value
+         };
+
+         try {
+             // Verificar se o login já existe (apenas para novos cadastros ou se mudou o login)
+             if (!idUsuario || this.usuario.value.trim().toLowerCase() !== dadosUsuarios.find(u => u.id == idUsuario)?.usuario) {
+                 const { data: usuarioExistente } = await supabaseClient
+                     .from('usuarios')
+                     .select('id')
+                     .eq('usuario', d.usuario);
+                 
+                 if (usuarioExistente && usuarioExistente.length > 0) {
+                     alert("⚠️ Esse Login de Acesso já existe. Por favor, escolha outro.");
+                     btn.disabled = false; btn.innerText = "Salvar Usuário";
+                     return;
+                 }
+             }
+
+             let resultado;
+             if (idUsuario) {
+                 resultado = await supabaseClient.from('usuarios').update(d).eq('id', idUsuario);
+                 if (resultado.error) throw resultado.error;
+                 registrarLogAcao(`Editou o acesso do usuário: ${d.usuario}`);
+                 alert("Usuário atualizado com sucesso!");
+             } else {
+                 resultado = await supabaseClient.from('usuarios').insert([d]);
+                 if (resultado.error) throw resultado.error;
+                 registrarLogAcao(`Criou um novo usuário: ${d.usuario}`);
+                 alert("Usuário criado com sucesso!");
+             }
+             
+             mudarSecao('usuarios');
+             carregarTudo();
+         } catch(error) {
+             console.error("Erro ao salvar:", error);
+             alert("Erro de conexão ao salvar. Detalhes: " + error.message);
+         } finally {
+             btn.disabled = false; 
+             btn.innerText = "Salvar Usuário";
+         }
+      };
+
+      async function excluirUsuario(id, usuario) {
+         // Proteção extra: não excluir o administrador principal baseado no login 'admin'
+         if(usuario === "admin") { 
+             alert("Não é possível excluir o Administrador principal."); 
+             return; 
+         }
+         
+         if(!confirm(`Tem certeza que deseja EXCLUIR o acesso de '${usuario}'?`)) return;
+         
+         try {
+             const { error } = await supabaseClient.from('usuarios').delete().eq('id', id);
+             if (error) throw error;
+             
+             registrarLogAcao(`Excluiu o usuário: ${usuario}`);
+             alert("Usuário excluído com sucesso!");
+             carregarTudo();
+         } catch(e) {
+             console.error("Erro ao excluir:", e);
+             alert("Erro ao excluir usuário. Verifique as permissões. Detalhes: " + e.message);
+         }
+      }
+
+      async function limparLogs() {
+         if(!confirm("ATENÇÃO: Deseja apagar todo o histórico de logs do sistema? Esta ação não pode ser desfeita.")) return;
+         
+         try {
+             const { error } = await supabaseClient.from('log').delete().not('datahora', 'is', null);
+             if (error) throw error;
+             
+             registrarLogAcao("Limpou o histórico de logs do sistema.");
+             alert("Logs apagados com sucesso!");
+             carregarTudo();
+         } catch(e) {
+             console.error("Erro ao limpar logs:", e);
+             alert("Erro ao limpar os logs. Detalhes: " + e.message);
+         }
+      }
+
+      async function redefinirSenha(email) {
+          if (!email || email === 'E-mail não cadastrado') {
+              alert("Este usuário não possui e-mail cadastrado. Impossível redefinir senha.");
+              return;
+          }
+          
+          if (!confirm(`Deseja enviar um link de redefinição de senha para ${email}?`)) return;
+          
+          try {
+              const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                  redirectTo: window.location.origin + '/sistema/nova-senha.html'
+              });
+              if (error) throw error;
+              
+              registrarLogAcao(`Enviou link de redefinição de senha para: ${email}`);
+              alert("Link de redefinição enviado com sucesso! O usuário receberá um e-mail.");
+          } catch (e) {
+              console.error("Erro ao enviar link:", e);
+              alert("Erro ao enviar link de redefinição: " + e.message);
+          }
+      }
+
+      async function registrarLogAcao(acaoRealizada) {
+          const nomeReal = sessionStorage.getItem('usuarioLogado') || 'Desconhecido';
+          const userEmail = sessionStorage.getItem('loginDigitado') || 'Desconhecido';
+          const dataHoraAtual = new Date().toLocaleString('pt-BR'); 
+          
+          try {
+              await supabaseClient.from('log').insert([{ 
+                  datahora: dataHoraAtual, 
+                  usuario: userEmail, 
+                  nomelider: nomeReal, 
+                  acao: acaoRealizada 
+              }]);
+          } catch (e) { 
+              console.error("Erro ao salvar o log:", e); 
+          }
+      }
+      
+      function fazerLogout() {
+          if (confirm("Tem certeza que deseja sair do sistema?")) {
+              sessionStorage.clear();
+              window.location.href = "index.html";
+          }
+      }
+    </script>
+  </body>
+</html>
