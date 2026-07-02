@@ -1,4 +1,4 @@
-# Workflow para publicar conteúdo estático no GitHub Pages
+# Workflow para publicar conteúdo estático no GitHub Pagess
 name: Deploy static content to Pages
 
 on:
