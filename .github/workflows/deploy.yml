@@ -1,56 +1,38 @@
-# Workflow para publicar conteúdo estático no GitHub Pagess
-name: Deploy static content to Pages
+name: Deploy para GitHub Pages
 
 on:
-  # Executa quando houver um push na branch principal
   push:
-    branches: ["main"]
-  # Permite executar manualmente pela aba "Actions"
+    branches:
+      - main
   workflow_dispatch:
 
-# Permissões para permitir o deploy no GitHub Pages
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Permite apenas uma execução por vez, evitando conflitos
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  contents: write
 
 jobs:
-  # Job de deploy
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      # PASSO IMPORTANTE: Configura o Node.js 24 para eliminar o aviso
+
       - name: Setup Node.js 24
         uses: actions/setup-node@v5
         with:
           node-version: '24.x'
-      
-      # Garante que o Jekyll não tente processar o site
-      - name: Ensure .nojekyll exists
+
+      - name: Ensure .nojekyll
         run: |
           if [ ! -f .nojekyll ]; then
             touch .nojekyll
           fi
-      
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-      
+
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+          allow_empty_commit: true
+          keep_files: false
+          force_orphan: true
